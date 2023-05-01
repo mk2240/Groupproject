@@ -1,0 +1,28 @@
+---
+title: "Data Science for Public Policy"
+subtitle: "Group Project"
+author: "Nick Coukoulis, Moeko Kondo"
+format: 
+  html:
+    self-contained: true
+    code-line-numbers: true
+    code-fold: true
+execute: 
+  warning: false
+urlcolor: blue
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
