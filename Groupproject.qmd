@@ -24,11 +24,12 @@ library(SnowballC)
 library(igraph)
 library(ggraph)
 library(stopwords)
+library(dplyr)
 
 theme_set(theme_minimal())
 
 # load one-row-per-line data ----------------------------------------------
-surveydata <- read_csv("/Users/nicholascoukoulis/Documents/Georgetown/MPP/Spring2023/DataScience/assignments/project/individualresponses_survey_updated_5.1.23.csv")
+surveydata <- read_csv("/Users/momom/Desktop/introdata/groupproject/groupproject/individualresponses_survey_updated_5.1.23.csv")
 surveydata <- filter(surveydata, !is.na(text))
 
 #dropping consent & working years since we've cleaned data to just include these
@@ -36,6 +37,7 @@ surveydata <- surveydata[-c(1:2)]
 ```
 
 # Climate and Culture Facilitators 
+# Q: Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
 A TF-IDF approach was applied to determine the most frequent, unique terms related to climate and culture facilitators. 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 #climate culture facilitators
@@ -116,6 +118,447 @@ tf_idf %>%
   facet_wrap(~primaryrole, scales = "free", ncol = 4) +
   theme_minimal()+
   guides(fill = "none")
+```
+
+# Climate Barriers
+# Q: Considering your school, what factors, if any, do you believe are barriers that inhibit a positive climate and culture related to special education?
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+#climate barriers
+climate_barriers <- surveydata[c(1:4, 8)]
+
+climate_barriers_1 <- 
+  climate_barriers  %>%
+  pivot_longer(climate_barriers)
+```
+
+# One word
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+# tokenize the text -------------------------------------------------------
+tidy_climate_barriers <- climate_barriers_1 %>%
+  unnest_tokens(
+    output = word, 
+    input = value
+  )
+
+#stopwords
+tidy_climate_barriers
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I",
+  "1",
+  "3",
+  "4",
+  "major",
+  "barrier",
+  "don't"
+) %>%
+  mutate(lexicon = "custom")
+
+stop_words <- bind_rows(
+  stop_words,
+  domain_stop_words
+)
+
+# remove stop words with anti_join() and the stop_words tibble
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  anti_join(stop_words, by = "word") 
+
+# remove words that are entirely numbers
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  filter(!str_detect(word, pattern = "^\\d")) 
+
+# stem words with wordStem()
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  mutate(stem = wordStem(word))
+
+# compare the top words and top stems
+# do you notice any big changes?
+tidy_climate_barriers %>%
+  count(word, sort = TRUE) %>% 
+  print(n = 20)
+
+tidy_climate_barriers %>%
+  count(stem, sort = TRUE) %>% 
+  print(n = 20)
+
+tidy_climate_barriers %>%
+  count(primaryrole, sort = TRUE) %>%
+  print(n = 20)
+
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  drop_na(word) %>%
+  drop_na(stem) %>%
+  drop_na(primaryrole)
+
+tf_idf <- tidy_climate_barriers %>%
+  count(primaryrole, word, sort = TRUE) %>%
+  bind_tf_idf(term = word, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(8, tf_idf) %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  ggplot(aes(tf_idf, word, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
+
+```
+
+# Two word
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+
+# tokenize the text -------------------------------------------------------
+tidy_climate_barriers <- climate_barriers_1 %>%
+  unnest_tokens(
+    output = bigram, 
+    input = value,
+    token = "ngrams",
+    n = 2
+    )%>%
+  filter(!is.na(bigram))
+
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  separate(bigram, c("word1", "word2"), 
+           remove = FALSE)
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I",
+  "1",
+  "3",
+  "4",
+  "major",
+  "barrier",
+  "don't"
+) %>%
+  mutate(lexicon = "custom")
+
+# remove stop words with anti_join() and the stop_words tibble
+stop_words <- bind_rows(
+  stop_words,
+)
+
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  anti_join(stop_words, by = c("word1" = "word"))
+tidy_climate_barriers <- tidy_climate_barriers %>%
+  anti_join(stop_words, by = c("word2" = "word"))
+
+bigram_150 <- 
+  tidy_climate_barriers %>%
+  count(bigram, sort = TRUE) %>% 
+  filter(n > 3)
+
+# plot the bigrams that exist more than 150 times
+bigram_graph <- bigram_150 %>%
+  graph_from_data_frame()
+
+# plot the relationships (you may want to make the plot window bigger)
+set.seed(3000)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+tf_idf <- tidy_climate_barriers %>%
+  count(primaryrole, bigram, sort = TRUE) %>%
+  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(7, tf_idf) %>%
+  mutate(bigram = reorder(bigram, tf_idf)) %>%
+  ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
+
+```
+
+# Effective Communication
+# Q: Considering both district- and school-level communications, which practices do you perceive as effective?
+
+# two words
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+# effective communication
+effective_communication <- surveydata[c(1:4, 9)]
+
+effective_communication_1 <- 
+  effective_communication %>%
+  pivot_longer(effective_communication)
+
+# tokenize the text -------------------------------------------------------
+tidy_effective_communication <- effective_communication_1 %>%
+  unnest_tokens(
+    output = bigram, 
+    input = value,
+    token = "ngrams",
+    n = 2
+    )%>%
+  filter(!is.na(bigram))
+
+tidy_effective_communication <- tidy_effective_communication %>%
+  separate(bigram, c("word1", "word2"), 
+           remove = FALSE)
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I",
+  "1",
+  "3",
+  "4",
+  "major",
+  "barrier",
+  "don't"
+) %>%
+  mutate(lexicon = "custom")
+
+# remove stop words with anti_join() and the stop_words tibble
+stop_words <- bind_rows(
+  stop_words,
+  domain_stop_words
+)
+
+tidy_effective_communication <- tidy_effective_communication %>%
+  anti_join(stop_words, by = c("word1" = "word"))
+tidy_effective_communication <- tidy_effective_communication %>%
+  anti_join(stop_words, by = c("word2" = "word"))
+
+bigram_150 <- 
+  tidy_effective_communication %>%
+  count(bigram, sort = TRUE) %>% 
+  filter(n > 3)
+
+# plot the bigrams that exist more than 150 times
+bigram_graph <- bigram_150 %>%
+  graph_from_data_frame()
+
+# plot the relationships (you may want to make the plot window bigger)
+set.seed(3000)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+tf_idf <- tidy_effective_communication %>%
+  count(primaryrole, bigram, sort = TRUE) %>%
+  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(7, tf_idf) %>%
+  mutate(bigram = reorder(bigram, tf_idf)) %>%
+  ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
+```
+
+# Ineffective Communication
+# Q: Considering both district- and school-level communications, which practices do you perceive as ineffective or inefficient?
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+
+# Ineffective Communication
+ineffective_communication <- surveydata[c(1:4, 10)]
+
+ineffective_communication_1 <- 
+  ineffective_communication %>%
+  pivot_longer(ineffective_communication)
+
+# tokenize the text -------------------------------------------------------
+tidy_ineffective_communication <- ineffective_communication_1 %>%
+  unnest_tokens(
+    output = bigram, 
+    input = value,
+    token = "ngrams",
+    n = 2
+    )%>%
+  filter(!is.na(bigram))
+
+tidy_ineffective_communication <- tidy_ineffective_communication %>%
+  separate(bigram, c("word1", "word2"), 
+           remove = FALSE)
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I",
+  "1",
+  "3",
+  "4",
+  "major",
+  "barrier",
+  "don't",
+  "aren't",
+  "48"
+) %>%
+  mutate(lexicon = "custom")
+
+# remove stop words with anti_join() and the stop_words tibble
+stop_words <- bind_rows(
+  stop_words,
+  domain_stop_words
+)
+
+tidy_ineffective_communication <- tidy_ineffective_communication %>%
+  anti_join(stop_words, by = c("word1" = "word"))
+tidy_ineffective_communication <- tidy_ineffective_communication %>%
+  anti_join(stop_words, by = c("word2" = "word"))
+
+bigram_150 <- 
+  tidy_ineffective_communication %>%
+  count(bigram, sort = TRUE) %>% 
+  filter(n > 3)
+
+# plot the bigrams that exist more than 150 times
+bigram_graph <- bigram_150 %>%
+  graph_from_data_frame()
+
+# plot the relationships (you may want to make the plot window bigger)
+set.seed(3000)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+tf_idf <- tidy_ineffective_communication %>%
+  count(primaryrole, bigram, sort = TRUE) %>%
+  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(7, tf_idf) %>%
+  mutate(bigram = reorder(bigram, tf_idf)) %>%
+  ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
+
+```
+
+# Communication Recommendations
+# Q: What recommendations do you have for improving communication practices in Edmonds Public Schools?
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+# Communication Recommendation
+
+communication_recommendation <- surveydata[c(1:4, 11)] 
+communication_recommendation <- communication_recommendation %>%
+  mutate_all(as.character)
+
+communication_recommendation_1 <- communication_recommendation %>%
+  pivot_longer(communication_recommendation)
+
+# tokenize the text -------------------------------------------------------
+tidy_communication_rec <- communication_recommendation_1 %>%
+  unnest_tokens(
+    output = bigram, 
+    input = value,
+    token = "ngrams",
+    n = 2
+    )%>%
+  filter(!is.na(bigram))
+
+tidy_communication_rec <- tidy_communication_rec %>%
+  separate(bigram, c("word1", "word2"), 
+           remove = FALSE)
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I",
+  "1",
+  "3",
+  "4",
+  "major",
+  "barrier",
+  "don't",
+  "aren't",
+  "48"
+) %>%
+  mutate(lexicon = "custom")
+
+# remove stop words with anti_join() and the stop_words tibble
+stop_words <- bind_rows(
+  stop_words,
+  domain_stop_words
+)
+
+tidy_communication_rec <- tidy_communication_rec %>%
+  anti_join(stop_words, by = c("word1" = "word"))
+tidy_communication_rec <- tidy_communication_rec %>%
+  anti_join(stop_words, by = c("word2" = "word"))
+
+bigram_150 <- 
+  tidy_communication_rec %>%
+  count(bigram, sort = TRUE) %>% 
+  filter(n > 3)
+
+# plot the bigrams that exist more than 150 times
+bigram_graph <- bigram_150 %>%
+  graph_from_data_frame()
+
+# plot the relationships (you may want to make the plot window bigger)
+set.seed(3000)
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link() +
+  geom_node_point() +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
+
+tf_idf <- tidy_communication_rec %>%
+  count(primaryrole, bigram, sort = TRUE) %>%
+  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(7, tf_idf) %>%
+  mutate(bigram = reorder(bigram, tf_idf)) %>%
+  ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
+
+
+```
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+
+
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
