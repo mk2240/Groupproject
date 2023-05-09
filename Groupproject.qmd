@@ -29,7 +29,7 @@ library(dplyr)
 theme_set(theme_minimal())
 
 # load one-row-per-line data ----------------------------------------------
-surveydata <- read_csv("/Users/momom/Desktop/introdata/groupproject/groupproject/individualresponses_survey_updated_5.1.23.csv")
+surveydata <- read_csv("/Users/nicholascoukoulis/Documents/Georgetown/MPP/Spring2023/DataScience/assignments/project/Groupproject/individualresponses_survey_updated_5.1.23.csv")
 surveydata <- filter(surveydata, !is.na(text))
 
 #dropping consent & working years since we've cleaned data to just include these
@@ -37,7 +37,7 @@ surveydata <- surveydata[-c(1:2)]
 ```
 
 # Climate and Culture Facilitators 
-# Q: Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
+## Q: Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
 A TF-IDF approach was applied to determine the most frequent, unique terms related to climate and culture facilitators. 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 #climate culture facilitators
@@ -121,7 +121,7 @@ tf_idf %>%
 ```
 
 # Climate Barriers
-# Q: Considering your school, what factors, if any, do you believe are barriers that inhibit a positive climate and culture related to special education?
+## Q: Considering your school, what factors, if any, do you believe are barriers that inhibit a positive climate and culture related to special education?
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 #climate barriers
 climate_barriers <- surveydata[c(1:4, 8)]
@@ -131,7 +131,7 @@ climate_barriers_1 <-
   pivot_longer(climate_barriers)
 ```
 
-# One word
+## One word
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 # tokenize the text -------------------------------------------------------
 tidy_climate_barriers <- climate_barriers_1 %>%
@@ -157,7 +157,8 @@ domain_stop_words <- tribble(
   "4",
   "major",
   "barrier",
-  "don't"
+  "don't",
+  "etnier"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -203,7 +204,7 @@ tf_idf <- tidy_climate_barriers %>%
 
 tf_idf %>%
   group_by(primaryrole) %>%
-  top_n(8, tf_idf) %>%
+  top_n(6, tf_idf) %>%
   mutate(word = reorder(word, tf_idf)) %>%
   ggplot(aes(tf_idf, word, fill = primaryrole)) +
   geom_col() +
@@ -213,7 +214,7 @@ tf_idf %>%
 
 ```
 
-# Two word
+## Two word
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 
 # tokenize the text -------------------------------------------------------
@@ -291,7 +292,7 @@ tf_idf %>%
 ```
 
 # Effective Communication
-# Q: Considering both district- and school-level communications, which practices do you perceive as effective?
+## Q: Considering both district- and school-level communications, which practices do you perceive as effective?
 
 # two words
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
@@ -377,7 +378,7 @@ tf_idf %>%
 ```
 
 # Ineffective Communication
-# Q: Considering both district- and school-level communications, which practices do you perceive as ineffective or inefficient?
+## Q: Considering both district- and school-level communications, which practices do you perceive as ineffective or inefficient?
 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 
@@ -466,7 +467,7 @@ tf_idf %>%
 ```
 
 # Communication Recommendations
-# Q: What recommendations do you have for improving communication practices in Edmonds Public Schools?
+## Q: What recommendations do you have for improving communication practices in Edmonds Public Schools?
 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 # Communication Recommendation
@@ -476,7 +477,7 @@ communication_recommendation <- communication_recommendation %>%
   mutate_all(as.character)
 
 communication_recommendation_1 <- communication_recommendation %>%
-  pivot_longer(communication_recommendation)
+  pivot_longer(communication_recommendations)
 
 # tokenize the text -------------------------------------------------------
 tidy_communication_rec <- communication_recommendation_1 %>%
@@ -485,7 +486,7 @@ tidy_communication_rec <- communication_recommendation_1 %>%
     input = value,
     token = "ngrams",
     n = 2
-    )%>%
+  )%>%
   filter(!is.na(bigram))
 
 tidy_communication_rec <- tidy_communication_rec %>%
@@ -508,7 +509,13 @@ domain_stop_words <- tribble(
   "barrier",
   "don't",
   "aren't",
-  "48"
+  "48",
+  "21 22",
+  "20 21",
+  "haha",
+  "24",
+  "etnier",
+  "woodway"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -533,7 +540,7 @@ bigram_graph <- bigram_150 %>%
   graph_from_data_frame()
 
 # plot the relationships (you may want to make the plot window bigger)
-set.seed(3000)
+set.seed(1500)
 ggraph(bigram_graph, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
@@ -541,18 +548,18 @@ ggraph(bigram_graph, layout = "fr") +
 
 tf_idf <- tidy_communication_rec %>%
   count(primaryrole, bigram, sort = TRUE) %>%
-  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+  bind_tf_idf(term = bigram, document = primaryrole, n = n) %>%
+  arrange(desc(tf_idf))
 
 tf_idf %>%
   group_by(primaryrole) %>%
-  top_n(7, tf_idf) %>%
+  top_n(5, tf_idf) %>%
   mutate(bigram = reorder(bigram, tf_idf)) %>%
   ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
   geom_col() +
   facet_wrap(~primaryrole, scales = "free", ncol = 4) +
   theme_minimal()+
   guides(fill = "none")
-
 
 ```
 
