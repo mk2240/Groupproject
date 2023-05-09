@@ -1,6 +1,6 @@
 ---
-title: "Data Science for Public Policy"
-subtitle: "Group Project"
+title: "School District Special Education Program Review"
+subtitle: "Data Science for Public Policy Group Project"
 author: "Nick Coukoulis, Moeko Kondo"
 format: 
   html:
@@ -14,15 +14,108 @@ editor_options:
   chunk_output_type: console
 ---
 
+# Introduction
+
 ```{r}
-1 + 1
+library(tidyverse)
+library(tidytext)
+library(lubridate)
+library(SnowballC)
+library(igraph)
+library(ggraph)
+library(stopwords)
+
+theme_set(theme_minimal())
+
+# load one-row-per-line data ----------------------------------------------
+surveydata <- read_csv("/Users/nicholascoukoulis/Documents/Georgetown/MPP/Spring2023/DataScience/assignments/project/individualresponses_survey_updated_5.1.23.csv")
+surveydata <- filter(surveydata, !is.na(text))
+
+#dropping consent & working years since we've cleaned data to just include these
+surveydata <- surveydata[-c(1:2)]
 ```
 
-You can add options to executable code like this
+# Climate and Culture Facilitators 
+A TF-IDF approach was applied to determine the most frequent, unique terms related to climate and culture facilitators. 
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+#climate culture facilitators
+climate_facilitators <- surveydata[c(1:4, 7)]
 
-```{r}
-#| echo: false
-2 * 2
+climate_facilitators_1 <- 
+  climate_facilitators %>%
+  pivot_longer(climate_facilitators)
+
+# tokenize the text -------------------------------------------------------
+tidy_climate_facilitators <- climate_facilitators_1 %>%
+  unnest_tokens(
+    output = word, 
+    input = value
+  )
+
+#stopwords
+tidy_climate_facilitators
+
+# create domain-specific stop words
+domain_stop_words <- tribble(
+  ~word, 
+  "staff",
+  "special",
+  "education",
+  "ed",
+  "sped",
+  "I"
+) %>%
+  mutate(lexicon = "custom")
+
+stop_words <- bind_rows(
+  stop_words,
+  domain_stop_words
+)
+
+# remove stop words with anti_join() and the stop_words tibble
+tidy_climate_facilitators <- tidy_climate_facilitators %>%
+  anti_join(stop_words, by = "word") 
+
+# remove words that are entirely numbers
+tidy_climate_facilitators <- tidy_climate_facilitators %>%
+  filter(!str_detect(word, pattern = "^\\d")) 
+
+# stem words with wordStem()
+tidy_climate_facilitators <- tidy_climate_facilitators %>%
+  mutate(stem = wordStem(word))
+
+# compare the top words and top stems
+# do you notice any big changes?
+tidy_climate_facilitators %>%
+  count(word, sort = TRUE) %>% 
+  print(n = 20)
+
+tidy_climate_facilitators %>%
+  count(stem, sort = TRUE) %>% 
+  print(n = 20)
+
+tidy_climate_facilitators %>%
+  count(primaryrole, sort = TRUE) %>%
+  print(n = 20)
+
+tidy_climate_facilitators <- tidy_climate_facilitators %>%
+  drop_na(word) %>%
+  drop_na(stem) %>%
+  drop_na(primaryrole)
+
+tf_idf <- tidy_climate_facilitators %>%
+  count(primaryrole, word, sort = TRUE) %>%
+  bind_tf_idf(term = word, document = primaryrole, n = n)
+
+tf_idf %>%
+  group_by(primaryrole) %>%
+  top_n(8, tf_idf) %>%
+  mutate(word = reorder(word, tf_idf)) %>%
+  ggplot(aes(tf_idf, word, fill = primaryrole)) +
+  geom_col() +
+  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  theme_minimal()+
+  guides(fill = "none")
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
