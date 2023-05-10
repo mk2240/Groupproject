@@ -34,7 +34,7 @@ library(dplyr)
 theme_set(theme_minimal())
 
 # load one-row-per-line data ----------------------------------------------
-surveydata <- read_csv("/Users/nicholascoukoulis/Documents/Georgetown/MPP/Spring2023/DataScience/assignments/project/Groupproject/individualresponses_survey_updated_5.1.23.csv")
+surveydata <- read_csv("/Users/momom/Desktop/introdata/groupproject/groupproject/individualresponses_survey_updated_5.1.23.csv")
 surveydata <- filter(surveydata, !is.na(text))
 
 #dropping consent & working years since we've cleaned data to just include these
@@ -68,17 +68,19 @@ A Term Frequency - Inverse Document Frequency (TF-IDF) analysis is used for almo
 
 If a term doesn't exist in a given document, the TF score would be 0. Likewise, if a document is comprised only of the same one term, the TF score would be 1. All TF scores fall within a range between 0 and 1. 
 
-"Inverse Document Frequency" (IDF) measures the informativeness of any term, *t*. An IDF value will be very low for "stop words," or common words like "is" or "a" because they aren't very informative on their own. 
+"Inverse Document Frequency" (IDF) measures the informativeness of any term, *t*. An IDF value will be very low for "stop words," or common words like "is" or "a" because they aren't very informative on their own. In addition to those general "stop words", we set domain-specific stop words such as the words which included in the survey questions are used a lot because people tend to repeat again in their answers in order to increase the accuracy.
 
-Thus, the TF-IDF score is a measure of originality of term *t* calculated by comparing the number of times term *t* appears in a document with the number of documents term *t* appears in. A higher TF-IDF score indicates the importance and relevance of a term. Lower importance terms will have scores closer to 0. TF-IDF was selected for analysis for a quick summary of priorities/keywords across survey items and to easily compare and contrast priorities and concerns between roles. 
+Thus, the TF-IDF score is a measure of originality of term *t* calculated by comparing the number of times term *t* appears in a document with the number of documents term *t* appears in. A higher TF-IDF score indicates the importance and relevance of a term. Lower importance terms will have scores closer to 0. TF-IDF was selected for analysis for a quick summary of priorities/keywords across survey items and to easily compare and contrast priorities and concerns between roles. At the same time, it was utilized to categorize words into positive and negative meanings for setting the topics in topic modeling.  
 
 ### Bigrams
 A bigram chart was used for one survey item related to ineffective communication. A "bigram" is an association between two individual terms. The bigram chart employs a frequency count of terms and is an effective way to visualize relationships between terms. 
 
 A bigram chart was selected as the best analysis method for this survey item as it most clearly demonstrated the relationship staff have with current district communication methods and most clearly identifies concerns being related to communications sent at the district-level. 
 
-### Latent Dirichlet Allocation (LDA)
+### Topic Modeling - Latent Dirichlet Allocation (LDA)
+Topic Modeling is a method for unsupervised classification of text analysis. Even when we do not know what should we analyze from the text data, this model can find some hidden groups of topics. In this paper, we first conducted the analysis of the question by question. Next, we employ this topic modeling to find the most important predictor of negative and positive climate in the school workplaces across the survey data. For instance, some frequently used words such as "email" and "meeting" are important words but must have multiple meanings both negative and positive. Topic modeling can find the hidden meaning by annotating the document based on the predicted topic to find the truly impactful predictors. 
 
+LDA is one of the methods of topic modeling. LDA aims to find the topic of the document based on the words that belong to it. This method disregards grammar and other words.  
 
 # Climate and Culture Facilitators 
 ## Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
@@ -509,9 +511,12 @@ tf_idf %>%
   guides(fill = "none")
 ```
 
-# Topic Modeling
-# Make Topics
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+# Topic Modeling - Latent Dirichlet Allocation (LDA)
+
+## Make Topics with TF-IDF Analysis
+Firstly, we set the two topics which represent negative and positive climate. TF-IDF was conducted with the whole survey data to boil down the negative and positive words by labeling with two kinds of questions: negative answers of "climate barriers" and "ineffective communications" questions, and positive answers about ”effective communications” and ”communication recommendations" questions.
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 # make one data frame which includes all 4 survey questions
 climate_barriers <- surveydata[c(8)]
 effective_communication <- surveydata[c(9)]
@@ -566,8 +571,6 @@ domain_stop_words <- tribble(
   "school",
   "students",
   "student",
-  "communication",
-  "communications",
   "level",
   "teachers",
   "teacher"
@@ -746,8 +749,9 @@ topics <- list(
 
 ```
 
-# Analysis: Word and Document-topic probabilities
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+## Probabilities
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 set.seed(42)
 document_length_i <- rpois(n = 1, lambda = 10)
 document_length_i
@@ -776,6 +780,57 @@ library(tidyverse)
 library(tidytext)
 library(SnowballC)
 library(topicmodels)
+
+# make one dataframe which includes all 4 suevey questions and primary role
+climate_barriers <- surveydata[c(1,8)]
+effective_communication <- surveydata[c(1, 9)]
+ineffective_communication <- surveydata[c(1, 10)]
+communication_recommendation <- surveydata[c(1, 11)] 
+
+climate_barriers <- climate_barriers %>%
+  mutate(question = "climate_barriers")
+colnames(climate_barriers) <- c("primaryrole", "text", "question")
+
+effective_communication <- effective_communication %>%
+  mutate(question = "effective_communication")
+colnames(effective_communication) <- c("primaryrole","text", "question")
+
+ineffective_communication <- ineffective_communication %>%
+  mutate(question = "ineffective_communication")
+colnames(ineffective_communication) <- c("primaryrole","text", "question")
+
+communication_recommendation <- communication_recommendation %>%
+  mutate(question = "communication_recommendation")
+colnames(communication_recommendation) <- c("primaryrole","text", "question")
+
+
+allquestions <- rbind.data.frame(
+  climate_barriers, 
+  effective_communication, 
+  ineffective_communication, 
+  communication_recommendation
+)
+allquestions <- allquestions %>%
+  filter(!is.na(text))%>%
+  mutate(row_num = row_number())
+
+# tokenize the text 
+tidy_allquestions <- allquestions %>%
+  unnest_tokens(
+    output = word, 
+    input = text
+  )
+
+tidy_allquestions<- tidy_allquestions %>%
+  anti_join(stop_words, by = "word") 
+
+# remove words that are entirely numbers
+tidy_allquestions <- tidy_allquestions %>%
+  filter(!grepl("\\d{2,}", word)) 
+
+# stem words with wordStem()
+tidy_allquestions <- tidy_allquestions %>%
+  mutate(stem = wordStem(word))
 
 tidy_allquestions_count <- tidy_allquestions %>%
   count(question, stem)
@@ -814,56 +869,20 @@ top_gamma <- lda_gamma %>%
 top_gamma
 ```
 
-# Prediction (Example 5)
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
-# Predictive modeling uses a slightly different data format than tidytext.
-# We want each row in the data to correspond with the observations we are using for predictions. 
-# In this case,we want one row per Federalist paper. 
-# remove stop words with anti_join() and the stop_words tibble
-
-tidy_allquestions<- tidy_allquestions %>%
-  anti_join(stop_words, by = "word") 
-
-# remove words that are entirely numbers
-tidy_allquestions <- tidy_allquestions %>%
-  filter(!grepl("\\d{2,}", word)) 
-
-# stem words with wordStem()
-tidy_allquestions <- tidy_allquestions %>%
-  mutate(stem = wordStem(word))
-
-# compare the top words and top stems
-tidy_allquestions %>%
-  count(word, sort = TRUE) %>% 
-  print(n = 20)
-
-tidy_allquestions %>%
-  count(stem, sort = TRUE) %>% 
-  print(n = 20)
-
-tidy_allquestions %>%
-  count(question, sort = TRUE) %>%
-  print(n = 20)
-
-tidy_allquestions <- tidy_allquestions %>%
-  drop_na(word) %>%
-  drop_na(stem) %>%
-  drop_na(question)
-
-###
-
-tidy_allquestions <- tidy_allquestions %>%
-  group_by(question) %>%
+# Recipe
+allquestions <- allquestions %>%
+  group_by(row_num) %>%
   nest(text = text) %>%
   # paste individual lines into one row per document
   mutate(text = map_chr(.x = text, ~paste(.x[[1]], collapse = " "))) %>%
   ungroup() %>%
   # remove white spaces
   mutate(text = str_squish(str_to_lower(text)))
+allquestions
 
 library(textrecipes)
-
-recipe( ~ text, data = tidy_allquestions) %>%
+recipe( ~ text, data = allquestions) %>%
   # tokenize the text
   step_tokenize(text) %>%
   # remove stop works
@@ -877,44 +896,172 @@ recipe( ~ text, data = tidy_allquestions) %>%
   prep() %>%
   bake(new_data = NULL)
 
-
 ```
 
-# Prediction (Example 6) 
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+## Find the best model
 
-# dataset
-allquestions <- allquestions%>%
+In the coefficients analysis, the word "lack", "barrier", and "inconsistent" have the biggest impact for predicting the negative climate in the school workplace. Regarding the predictors for positive climate, "meeting" has both meanings negative and positive, yet we found that it is more likely to be used in the positive context from this analysis. "improve" sounds a good predictor for the positive climate; however, it has only a relatively small impact on the positive climate.
+
+For the variable importance, "lack" is the best word in our survey data to predict negative climate. the importance significantly decreases from the second variable. "enough" and "student" are following, which are also predictor for the negative climate.
+
+As a whole, negative climate predictors got higher figures than predictors for positive climate. This indicates that negative climate factors are not such variety in school workplaces, which means it is easier to set a goal to eliminate the negative factors than to set a goal for creating good climate.
+
+The Random Forest is the better model compared to Lasso model in terms of RSME.
+
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
+# pre-process data
+eos <- allquestions %>%
   filter(!is.na(text))
 
-# remove numbers
-allquestions_1 <- allquestions %>%
+eos <- eos %>%
   mutate(text = str_remove_all(text, "\\d")) %>%
   mutate(text = str_remove_all(text, "``''")) %>%
   mutate(text = str_squish(text))
+
 # combine rows into one row per document
-allquestions_1 <- allquestions_1 %>%
-  group_by(question) %>%
+eos <- eos %>%
+  group_by(row_num) %>%
   nest(text = text) %>%
   mutate(text = map_chr(.x = text, ~paste(.x[[1]], collapse = " "))) %>%
   ungroup()
-
-
-######################################
 # label the party of each executive order
-negative <- c("ineffective_communication", "climate_barriers")
-eos_modeling <- allquestions_text_1 %>%
+negative <- c("climate_barriers", "ineffective_communication")
+eos_modeling <- eos %>%
   mutate(
-    satisfaction = if_else(
+    climate = if_else(
       condition = question %in% negative,
       true = "neg",
-      false = "posi"
+      false = "pos"
     )
   )
 
+# LASSO regression
+library(tidymodels)
+library(textrecipes)
+library(vip)
+# create a training/testing split
+set.seed(43)
+eos_split <- initial_split(eos_modeling, strata = climate)
+eos_train <- training(eos_split)
+eos_test <- testing(eos_split)
+
+# set up cross validation
+set.seed(34)
+eos_folds <- vfold_cv(eos_train, strata = climate)
+
+# create a recipe that will be used by both models.
+eos_rec <-
+  recipe(climate ~ text, data = eos_train) %>%
+  step_tokenize(text) %>%
+  step_stopwords(text) %>%
+  step_stem(text) %>%
+  # ad hoc testing indicates that increasing max tokens makes a difference
+  step_tokenfilter(text, max_tokens = 1000) %>%
+  step_tfidf(text)
+
+# Create a workflow.
+lasso_mod <-
+  logistic_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("classification") %>%
+  set_engine("glmnet")
+
+lasso_wf <- workflow() %>%
+  add_recipe(eos_rec) %>%
+  add_model(lasso_mod)
+
+# Create a grid for hyperparameter tuning and fit the models.
+lasso_grid <- grid_regular(penalty(range = c(-5, 0)), levels = 10)
+lasso_cv <-
+  tune_grid(
+    lasso_wf,
+    eos_folds,
+    grid = lasso_grid
+  )
+
+# Unpack the estimated models.
+lasso_cv %>%
+  collect_metrics(summarize = FALSE)%>%
+  summarize(avg_rmse = mean(.estimate))
+
+autoplot(lasso_cv)
+
+lasso_cv %>%
+  select_best("roc_auc")
+
+# Fit the best model on all of the training data and look at the coefficients.
+lasso_wf <- finalize_workflow(x = lasso_wf, parameters = select_best(lasso_cv, "roc_auc"))
+lasso_fit <- last_fit(lasso_wf, split = eos_split)
+lasso_fit %>%
+  extract_fit_parsnip() %>%
+  tidy() %>%
+  arrange(desc(abs(estimate))) %>%
+  print(n = 20)
+
+# Random Forest
+# Create a workflow.
+rf_mod <-
+  rand_forest(mtry = tune(), trees = 100, min_n = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("ranger", importance = "impurity")
+rf_wf <- workflow() %>%
+  add_recipe(eos_rec) %>%
+  add_model(rf_mod)
+
+library(ranger)
+# Create a grid for hyperparameter tuning and fit the models.
+rf_grid <- grid_regular(
+  mtry(range = c(10, 100)),
+  min_n(range = c(2, 8)),
+  levels = 5
+)
+rf_cv <-
+  tune_grid(
+    rf_wf,
+    eos_folds,
+    grid = rf_grid
+  )
+# Unpack the estimated models.
+rf_cv %>%
+  collect_metrics()
+
+autoplot(rf_cv)
+
+rf_cv %>%
+  select_best("roc_auc")
+
+# Fit the best model on all of the training data and look at variable importance.
+rf_wf <- finalize_workflow(x = rf_wf, parameters = select_best(rf_cv, "roc_auc"))
+rf_fit <- last_fit(rf_wf, split = eos_split)
 ```
 
+```{r}
+rf_fit %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 20)
+```
 
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
+# Out of sample error rate
+collect_metrics(rf_fit)
+```
+
+## find the best topic numbers
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
+
+library(ldatuning)
+results <- FindTopicsNumber(
+  eos_dtm,
+  topics = seq(from = 2, to = 82, by = 10),
+  # note: "Griffiths2004" does not work on Mac M1 chips because of Rmpfr
+  metrics = c("CaoJuan2009", "Arun2010", "Deveaud2014"),
+  method = "Gibbs",
+  control = list(seed = 77),
+  mc.cores = 6L,
+  verbose = TRUE
+)
+FindTopicsNumber_plot(results)
+
+```
 
 
 # Summary of Results: Strengths and Recommendations
