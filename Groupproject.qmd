@@ -512,7 +512,6 @@ tf_idf %>%
 ```
 
 # Topic Modeling - Latent Dirichlet Allocation (LDA)
-
 ## Make Topics with TF-IDF Analysis
 Firstly, we set the two topics which represent negative and positive climate. TF-IDF was conducted with the whole survey data to boil down the negative and positive words by labeling with two kinds of questions: negative answers of "climate barriers" and "ineffective communications" questions, and positive answers about ”effective communications” and ”communication recommendations" questions.
 
@@ -573,7 +572,11 @@ domain_stop_words <- tribble(
   "student",
   "level",
   "teachers",
-  "teacher"
+  "teacher",
+  "aren't",
+  "don't",
+  "doesn't",
+  "didn't"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -647,7 +650,7 @@ tf_idf %>%
   mutate(bigram = reorder(bigram, tf_idf)) %>%
   ggplot(aes(tf_idf, bigram, fill = question)) +
   geom_col() +
-  facet_wrap(~question, scales = "free", ncol = 4) +
+  facet_wrap(~question, scales = "free", ncol = 2) +
   labs (x = "TF-IDF Score" , y = "Term") +
   theme_minimal()+
   guides(fill = "none")
@@ -749,7 +752,7 @@ topics <- list(
 
 ```
 
-## Probabilities
+## Calcurate Probabilities
 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 set.seed(42)
