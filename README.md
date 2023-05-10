@@ -1,2 +1,2 @@
 # Groupproject
-# git@github.com:mk2240/Groupproject.git
+https://github.com/mk2240/Groupproject.git
