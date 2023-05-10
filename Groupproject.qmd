@@ -34,7 +34,7 @@ library(dplyr)
 theme_set(theme_minimal())
 
 # load one-row-per-line data ----------------------------------------------
-surveydata <- read_csv("/Users/momom/Desktop/introdata/groupproject/groupproject/individualresponses_survey_updated_5.1.23.csv")
+surveydata <- read_csv("/Users/nicholascoukoulis/Documents/Georgetown/MPP/Spring2023/DataScience/assignments/project/Groupproject/individualresponses_survey_updated_5.1.23.csv")
 surveydata <- filter(surveydata, !is.na(text))
 
 #dropping consent & working years since we've cleaned data to just include these
@@ -78,9 +78,9 @@ A bigram chart was used for one survey item related to ineffective communication
 A bigram chart was selected as the best analysis method for this survey item as it most clearly demonstrated the relationship staff have with current district communication methods and most clearly identifies concerns being related to communications sent at the district-level. 
 
 ### Topic Modeling - Latent Dirichlet Allocation (LDA)
-Topic Modeling is a method for unsupervised classification of text analysis. Even when we do not know what should we analyze from the text data, this model can find some hidden groups of topics. In this paper, we first conducted the analysis of the question by question. Next, we employ this topic modeling to find the most important predictor of negative and positive climate in the school workplaces across the survey data. For instance, some frequently used words such as "email" and "meeting" are important words but must have multiple meanings both negative and positive. Topic modeling can find the hidden meaning by annotating the document based on the predicted topic to find the truly impactful predictors. 
+Topic Modeling is a method for unsupervised classification of text analysis. Even when we do not know what should we analyze from text data, the strength of this model is finding some hidden groups of topics. In this paper, we first conducted the analysis of the question by question. Next, we employ topic modeling to find the most important predictors of negative and positive climate in the district across the survey data. For instance, some frequently used words such as "email" and "meeting" are important words but have multiple meanings, both negative and positive. Topic modeling can find the hidden meanings by annotating the document based on the predicted topic to find the most impactful predictors. 
 
-LDA is one of the methods of topic modeling. LDA aims to find the topic of the document based on the words that belong to it. This method disregards grammar and other words.  
+LDA is one method of topic modeling. LDA aims to find the topic of the document based on the words belonging to it. This method disregards grammar and other words.  
 
 # Climate and Culture Facilitators 
 ## Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
@@ -901,7 +901,7 @@ recipe( ~ text, data = allquestions) %>%
 
 ```
 
-## Find the best model
+## Finding the best model
 
 In the coefficients analysis, the word "lack", "barrier", and "inconsistent" have the biggest impact for predicting the negative climate in the school workplace. Regarding the predictors for positive climate, "meeting" has both meanings negative and positive, yet we found that it is more likely to be used in the positive context from this analysis. "improve" sounds a good predictor for the positive climate; however, it has only a relatively small impact on the positive climate.
 
@@ -1135,8 +1135,13 @@ A review of the data, including the text analysis review, strongly supports impl
   
   + We also see from the text analysis that accessibility and equity, as frequently recurring terms used by certified support staff and special education teachers, need to be a higher priority in the district given it's vision and commitment focused on "equity, engagement, and excellence for every student." "Accessibility" can refer to curriculum in the classroom or simply access to physical spaces as we see "double doors" and accessible "bathrooms" listed as priorities by staff.   
 
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+# References
+Analyzing tf-idf results in scikit-learn—Datawerk. (n.d.). Retrieved May 10, 2023, from https://buhrmann.github.io/tfidf-analysis.html
 
+Scott, J. (2021, March 29). What’s in a word? Medium. https://towardsdatascience.com/whats-in-a-word-da7373a8ccb
 
-```
+Scott, W. (2021, September 26). TF-IDF for Document Ranking from scratch in python on real world dataset. Medium. https://towardsdatascience.com/tf-idf-for-document-ranking-from-scratch-in-python-on-real-world-dataset-796d339a4089
+
+Understanding TF-IDF for Machine Learning. (n.d.). Capital One. Retrieved May 10, 2023, from https://www.capitalone.com/tech/machine-learning/understanding-tf-idf/
+
 
