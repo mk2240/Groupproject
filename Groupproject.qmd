@@ -1,5 +1,5 @@
 ---
-title: "School District Special Education Program Review"
+title: "Employing Text Analysis for a School District's Special Education Program Review"
 subtitle: "Data Science for Public Policy Group Project"
 author: "Nick Coukoulis, Moeko Kondo"
 format: 
@@ -15,6 +15,11 @@ editor_options:
 ---
 
 # Introduction
+A suburban school district just outside a large city on the West Coast wished to conduct a third-party, independent review of their special education program following several high-profile staff departures from the district office and receiving negative press of their special education staff feeling "abandoned" in local news articles. The purpose of the review was to examine special education practices impacting climate, staffing, and communication within the district. The review aimed to identify strengths and areas of need for district leadership to better understand and improve their current system. The review was conducted over a 7-month period between October 2022 and May 2023. 
+
+The review began by gathering information from extant data available at the district-level, reviewing websites, documents (e.g., school board policies and procedures, student services employee exit interview notes), and data (e.g., numbers of special education staff no longer working in the district by year). In addition to reviewing the extant data, a staff survey, ten interviews, and seven focus groups were conducted. 
+
+This analysis aims to identify strengths and areas of need for district leadership to better understand and improve their current system. In this analysis, we contextualize and present text analysis results based upon the open-ended survey responses and focus group/interview transcripts. We conclude with recommendations grounded in the results and in knowledge of best practices supported by research that are being implemented successfully in similar districts nationwide.
 
 ```{r}
 library(tidyverse)
@@ -36,10 +41,49 @@ surveydata <- filter(surveydata, !is.na(text))
 surveydata <- surveydata[-c(1:2)]
 ```
 
+# Methods
+## Data Collection
+Seven one-hour virtual focus groups with district-level administrators, building administrators, certified support staff (e.g., related service providers, school psychologists), special education teachers, general education teachers, and non-certified support staff (e.g., transportation staff, paraeducators) were conducted. We spoke with 60 staff total, with an average focus group size of 9 members.
+
+Ten interviews were conducted that included current and former district staff serving in the district office. Roles interviewed included superintendent, assistant superintendent, itinerant services program manager, director of student support services, director of special education, manager of special education programs, director of psychology and counseling, deaf and hard of hearing program director, and president and uniserv representative of the teachers' union. 
+
+All staff in the district (school-level and district-level) were invited to complete a survey administered via SurveyMonkey that included 33 Likert-scale items aligned with the research questions guiding the review, seven open-ended response questions, and six multiple choice questions. Estimated response time for the survey was 15-20 minutes. 
+
+The district has a total of 3,023 employees. A total of 1205 staff (40% of all staff) consented to take the survey, indicated they had worked in the district during the 2021-22 school year, and shared their role. Of this total:
+
+* 417 (35%) were general education teachers;
+* 308 (26%) were non-certified support staff (including paraeducators);
+* 151 (13%) were related service providers, psychologists, or other certified support staff; 
+* 119 (10%) were special education teachers;
+* 28 (2.3%) were school administrators;
+* 18 (2%) were district administrators; 
+* 12 (1%) were transportation staff; and 
+* 152 (13%) identified as “other” 
+  + Individuals who selected “other” were asked to specify and responses included, but were not limited to, roles like custodian, music specialist, food service worker, substitute teacher, and ASL interpreter. Several certificated roles like ELL teacher, behavior and emotional support specialist, and certificated nurse selected “other” as well. The survey was open for two weeks in January 2023, from January 9 to January 24. 
+
+## Data Analysis
+
+### Term Frequency - Inverse Document Frequency (TF-IDF)
+A Term Frequency - Inverse Document Frequency (TF-IDF) analysis is used for almost all survey questions relating to climate and communication. "Term Frequency" (TF) measures the frequency of a word in a document. Because documents vary in length and longer documents are equally as important as shorter documents, normalization of the frequency value is required in the form of dividing the frequency by the total number of words in the document. 
+
+If a term doesn't exist in a given document, the TF score would be 0. Likewise, if a document is comprised only of the same one term, the TF score would be 1. All TF scores fall within a range between 0 and 1. 
+
+"Inverse Document Frequency" (IDF) measures the informativeness of any term, *t*. An IDF value will be very low for "stop words," or common words like "is" or "a" because they aren't very informative on their own. 
+
+Thus, the TF-IDF score is a measure of originality of term *t* calculated by comparing the number of times term *t* appears in a document with the number of documents term *t* appears in. A higher TF-IDF score indicates the importance and relevance of a term. Lower importance terms will have scores closer to 0. TF-IDF was selected for analysis for a quick summary of priorities/keywords across survey items and to easily compare and contrast priorities and concerns between roles. 
+
+### Bigrams
+A bigram chart was used for one survey item related to ineffective communication. A "bigram" is an association between two individual terms. The bigram chart employs a frequency count of terms and is an effective way to visualize relationships between terms. 
+
+A bigram chart was selected as the best analysis method for this survey item as it most clearly demonstrated the relationship staff have with current district communication methods and most clearly identifies concerns being related to communications sent at the district-level. 
+
+### Latent Dirichlet Allocation (LDA)
+
+
 # Climate and Culture Facilitators 
-## Q: Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
-A TF-IDF approach was applied to determine the most frequent, unique terms related to climate and culture facilitators. 
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+## Considering your school, what factors do you believe are presently or would be facilitators of a positive climate and culture related to special education?
+A single-term TF-IDF approach was applied here to determine the most frequent, unique terms related to climate and culture facilitators. 
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", echo = FALSE,fig.height = 9}
 #climate culture facilitators
 climate_facilitators <- surveydata[c(1:4, 7)]
 
@@ -60,12 +104,23 @@ tidy_climate_facilitators
 # create domain-specific stop words
 domain_stop_words <- tribble(
   ~word, 
-  "staff",
   "special",
   "education",
   "ed",
   "sped",
-  "I"
+  "I",
+  "classroom",
+  "stuff",
+  "mat",
+  "hoyer",
+  "hold",
+  "environment",
+  "siblings",
+  "depressing",
+  "differences",
+  "recommendations",
+  "served",
+  "gen"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -107,115 +162,32 @@ tidy_climate_facilitators <- tidy_climate_facilitators %>%
 
 tf_idf <- tidy_climate_facilitators %>%
   count(primaryrole, word, sort = TRUE) %>%
-  bind_tf_idf(term = word, document = primaryrole, n = n)
+  bind_tf_idf(term = word, document = primaryrole, n = n) %>%
+  arrange(desc(tf_idf))
 
 tf_idf %>%
   group_by(primaryrole) %>%
-  top_n(8, tf_idf) %>%
+  top_n(7, tf_idf) %>%
   mutate(word = reorder(word, tf_idf)) %>%
   ggplot(aes(tf_idf, word, fill = primaryrole)) +
   geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  facet_wrap(~primaryrole, scales = "free", ncol = 2) +
+  labs (x = "TF-IDF Score" , y = "Term") +
   theme_minimal()+
   guides(fill = "none")
 ```
 
 # Climate Barriers
-## Q: Considering your school, what factors, if any, do you believe are barriers that inhibit a positive climate and culture related to special education?
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+## Considering your school, what factors, if any, do you believe are barriers that inhibit a positive climate and culture related to special education?
+A bigram TF-IDF approach was applied to determine the most frequent, unique pairs of terms related to climate and culture barriers.  
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 13, fig.width = 10}
 #climate barriers
 climate_barriers <- surveydata[c(1:4, 8)]
 
 climate_barriers_1 <- 
   climate_barriers  %>%
   pivot_longer(climate_barriers)
-```
 
-## One word
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
-# tokenize the text -------------------------------------------------------
-tidy_climate_barriers <- climate_barriers_1 %>%
-  unnest_tokens(
-    output = word, 
-    input = value
-  )
-
-#stopwords
-tidy_climate_barriers
-
-# create domain-specific stop words
-domain_stop_words <- tribble(
-  ~word, 
-  "staff",
-  "special",
-  "education",
-  "ed",
-  "sped",
-  "I",
-  "1",
-  "3",
-  "4",
-  "major",
-  "barrier",
-  "don't",
-  "etnier"
-) %>%
-  mutate(lexicon = "custom")
-
-stop_words <- bind_rows(
-  stop_words,
-  domain_stop_words
-)
-
-# remove stop words with anti_join() and the stop_words tibble
-tidy_climate_barriers <- tidy_climate_barriers %>%
-  anti_join(stop_words, by = "word") 
-
-# remove words that are entirely numbers
-tidy_climate_barriers <- tidy_climate_barriers %>%
-  filter(!str_detect(word, pattern = "^\\d")) 
-
-# stem words with wordStem()
-tidy_climate_barriers <- tidy_climate_barriers %>%
-  mutate(stem = wordStem(word))
-
-# compare the top words and top stems
-# do you notice any big changes?
-tidy_climate_barriers %>%
-  count(word, sort = TRUE) %>% 
-  print(n = 20)
-
-tidy_climate_barriers %>%
-  count(stem, sort = TRUE) %>% 
-  print(n = 20)
-
-tidy_climate_barriers %>%
-  count(primaryrole, sort = TRUE) %>%
-  print(n = 20)
-
-tidy_climate_barriers <- tidy_climate_barriers %>%
-  drop_na(word) %>%
-  drop_na(stem) %>%
-  drop_na(primaryrole)
-
-tf_idf <- tidy_climate_barriers %>%
-  count(primaryrole, word, sort = TRUE) %>%
-  bind_tf_idf(term = word, document = primaryrole, n = n)
-
-tf_idf %>%
-  group_by(primaryrole) %>%
-  top_n(6, tf_idf) %>%
-  mutate(word = reorder(word, tf_idf)) %>%
-  ggplot(aes(tf_idf, word, fill = primaryrole)) +
-  geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
-  theme_minimal()+
-  guides(fill = "none")
-
-```
-
-## Two word
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 
 # tokenize the text -------------------------------------------------------
 tidy_climate_barriers <- climate_barriers_1 %>%
@@ -245,13 +217,22 @@ domain_stop_words <- tribble(
   "4",
   "major",
   "barrier",
-  "don't"
+  "don't",
+  "1", "3",
+  "3", "1",
+  "1", "4",
+  "don't",
+  "incredibly",
+  "frustrating",
+  "community",
+  "students"
 ) %>%
   mutate(lexicon = "custom")
 
 # remove stop words with anti_join() and the stop_words tibble
 stop_words <- bind_rows(
   stop_words,
+  domain_stop_words
 )
 
 tidy_climate_barriers <- tidy_climate_barriers %>%
@@ -259,43 +240,31 @@ tidy_climate_barriers <- tidy_climate_barriers %>%
 tidy_climate_barriers <- tidy_climate_barriers %>%
   anti_join(stop_words, by = c("word2" = "word"))
 
-bigram_150 <- 
-  tidy_climate_barriers %>%
-  count(bigram, sort = TRUE) %>% 
-  filter(n > 3)
-
-# plot the bigrams that exist more than 150 times
-bigram_graph <- bigram_150 %>%
-  graph_from_data_frame()
-
-# plot the relationships (you may want to make the plot window bigger)
-set.seed(3000)
-ggraph(bigram_graph, layout = "fr") +
-  geom_edge_link() +
-  geom_node_point() +
-  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
-
+#tf-idf
 tf_idf <- tidy_climate_barriers %>%
   count(primaryrole, bigram, sort = TRUE) %>%
-  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+  bind_tf_idf(term = bigram, document = primaryrole, n = n) %>%
+  arrange(desc(tf_idf))
 
+#plotting tf-idf
 tf_idf %>%
   group_by(primaryrole) %>%
-  top_n(7, tf_idf) %>%
+  top_n(5, tf_idf) %>%
   mutate(bigram = reorder(bigram, tf_idf)) %>%
   ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
   geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  facet_wrap(~primaryrole, scales = "free", ncol = 2) +
+  labs (x = "TF-IDF Score" , y = "Bigram Terms") +
   theme_minimal()+
   guides(fill = "none")
 
 ```
 
 # Effective Communication
-## Q: Considering both district- and school-level communications, which practices do you perceive as effective?
+## Considering both district- and school-level communications, which practices do you perceive as effective?
+A bigram TF-IDF approach was applied to determine the most frequent, unique pairs of terms related to effective communication.  
 
-# two words
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 # effective communication
 effective_communication <- surveydata[c(1:4, 9)]
 
@@ -331,7 +300,14 @@ domain_stop_words <- tribble(
   "4",
   "major",
   "barrier",
-  "don't"
+  "don't",
+  "woodway",
+  "campus", 
+  "learning",
+  "support",
+  "news",
+  "effective",
+  "program"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -346,41 +322,30 @@ tidy_effective_communication <- tidy_effective_communication %>%
 tidy_effective_communication <- tidy_effective_communication %>%
   anti_join(stop_words, by = c("word2" = "word"))
 
-bigram_150 <- 
-  tidy_effective_communication %>%
-  count(bigram, sort = TRUE) %>% 
-  filter(n > 3)
-
-# plot the bigrams that exist more than 150 times
-bigram_graph <- bigram_150 %>%
-  graph_from_data_frame()
-
-# plot the relationships (you may want to make the plot window bigger)
-set.seed(3000)
-ggraph(bigram_graph, layout = "fr") +
-  geom_edge_link() +
-  geom_node_point() +
-  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
-
+#tf-idf
 tf_idf <- tidy_effective_communication %>%
   count(primaryrole, bigram, sort = TRUE) %>%
-  bind_tf_idf(term = bigram, document = primaryrole, n = n)
+  bind_tf_idf(term = bigram, document = primaryrole, n = n) %>%
+  arrange(desc(tf_idf))
 
+# plotting tf-idf
 tf_idf %>%
   group_by(primaryrole) %>%
-  top_n(7, tf_idf) %>%
+  top_n(5, tf_idf) %>%
   mutate(bigram = reorder(bigram, tf_idf)) %>%
   ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
   geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  facet_wrap(~primaryrole, scales = "free", ncol = 2) +
+  labs (x = "TF-IDF Score" , y = "Bigram Terms") +
   theme_minimal()+
   guides(fill = "none")
 ```
 
 # Ineffective Communication
-## Q: Considering both district- and school-level communications, which practices do you perceive as ineffective or inefficient?
+## Considering both district- and school-level communications, which practices do you perceive as ineffective or inefficient?
+A straightforward frequency count of bigrams was applied to clearly display relationships between terms and responsible parties/methods for ineffective communication. 
 
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 12.5, fig.width = 20}
 
 # Ineffective Communication
 ineffective_communication <- surveydata[c(1:4, 10)]
@@ -419,7 +384,7 @@ domain_stop_words <- tribble(
   "barrier",
   "don't",
   "aren't",
-  "48"
+  "level"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -434,42 +399,29 @@ tidy_ineffective_communication <- tidy_ineffective_communication %>%
 tidy_ineffective_communication <- tidy_ineffective_communication %>%
   anti_join(stop_words, by = c("word2" = "word"))
 
-bigram_150 <- 
+bigram_3 <- 
   tidy_ineffective_communication %>%
   count(bigram, sort = TRUE) %>% 
   filter(n > 3)
 
-# plot the bigrams that exist more than 150 times
-bigram_graph <- bigram_150 %>%
+# plot the bigrams that exist more than 3 times
+bigram_graph <- bigram_3 %>%
   graph_from_data_frame()
 
 # plot the relationships (you may want to make the plot window bigger)
-set.seed(3000)
+set.seed(2017)
 ggraph(bigram_graph, layout = "fr") +
   geom_edge_link() +
   geom_node_point() +
   geom_node_text(aes(label = name), vjust = 1, hjust = 1)
 
-tf_idf <- tidy_ineffective_communication %>%
-  count(primaryrole, bigram, sort = TRUE) %>%
-  bind_tf_idf(term = bigram, document = primaryrole, n = n)
-
-tf_idf %>%
-  group_by(primaryrole) %>%
-  top_n(7, tf_idf) %>%
-  mutate(bigram = reorder(bigram, tf_idf)) %>%
-  ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
-  geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
-  theme_minimal()+
-  guides(fill = "none")
-
 ```
 
 # Communication Recommendations
-## Q: What recommendations do you have for improving communication practices in Edmonds Public Schools?
+## What recommendations do you have for improving communication practices in Edmonds Public Schools?
+A bigram TF-IDF approach was applied to determine the most frequent, unique pairs of terms related to communication recommendations.  
 
-```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
+```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 # Communication Recommendation
 
 communication_recommendation <- surveydata[c(1:4, 11)] 
@@ -515,7 +467,17 @@ domain_stop_words <- tribble(
   "haha",
   "24",
   "etnier",
-  "woodway"
+  "woodway",
+  "pre",
+  "post",
+  "lap",
+  "title",
+  "wide",
+  "type",
+  "drivers",
+  "people",
+  "student",
+  "crew"
 ) %>%
   mutate(lexicon = "custom")
 
@@ -530,22 +492,6 @@ tidy_communication_rec <- tidy_communication_rec %>%
 tidy_communication_rec <- tidy_communication_rec %>%
   anti_join(stop_words, by = c("word2" = "word"))
 
-bigram_150 <- 
-  tidy_communication_rec %>%
-  count(bigram, sort = TRUE) %>% 
-  filter(n > 3)
-
-# plot the bigrams that exist more than 150 times
-bigram_graph <- bigram_150 %>%
-  graph_from_data_frame()
-
-# plot the relationships (you may want to make the plot window bigger)
-set.seed(1500)
-ggraph(bigram_graph, layout = "fr") +
-  geom_edge_link() +
-  geom_node_point() +
-  geom_node_text(aes(label = name), vjust = 1, hjust = 1)
-
 tf_idf <- tidy_communication_rec %>%
   count(primaryrole, bigram, sort = TRUE) %>%
   bind_tf_idf(term = bigram, document = primaryrole, n = n) %>%
@@ -557,15 +503,71 @@ tf_idf %>%
   mutate(bigram = reorder(bigram, tf_idf)) %>%
   ggplot(aes(tf_idf, bigram, fill = primaryrole)) +
   geom_col() +
-  facet_wrap(~primaryrole, scales = "free", ncol = 4) +
+  facet_wrap(~primaryrole, scales = "free", ncol = 2) +
+  labs (x = "TF-IDF Score" , y = "Bigram Terms") +
   theme_minimal()+
   guides(fill = "none")
-
 ```
+
+# Summary of Results: Strengths and Recommendations
+## Strengths
+A review of the data revealed the following strengths:
+
+* Strength 1: Staff remain focused on best serving students and families. 
+
+  + We see "kids" appear under Climate and Culture Facilitators and parent communication app "parent square" appear under Effective Communication.
+
+* Strength 2: Generally effective communication among staff and administrators at the building-level.
+
+  + Under Effective Communication, "building admin," "school level," or other similar terms are quite frequent. 
+
+* Strength 3: At all levels, staff acknowledge the district possesses a strong, qualified group of educators. 
+
+* Strength 4: Recognition the district was and is a well-regarded school district families locate to so their children can receive a high-quality education and special education services. 
+
+  + The 2020-21 and 2021-22 school years were particularly challenging with the COVID-19 pandemic, but were challenging for the district in other ways with changes in leadership (those years appear as consistent reference points throughout the text analysis). Given the recency of these changes and new practices not yet becoming entrenched, there is still time for leadership to course-correct and steer the district back to being a place students, families, and staff wish to be part of.  
+
+## Recommendations
+A review of the data, including the text analysis review, strongly supports implementation of the following recommendations: 
+
+* Recommendation 1: Establish a cross-district advisory committee for special education to address priority concerns.
+
+  + Establishing a cross-district advisory committee for special education is a proactive and inclusive approach to address priority concerns and improve the educational experiences of students with special needs. This committee would bring together key stakeholders from across the district, including educators, administrators, parents, community members, and experts in the field of special education. By fostering collaboration and shared decision-making, the committee should aim to identify, discuss, and develop strategies to address the specific challenges faced by students with disabilities.
+
+  + The committee's primary purpose is to create a platform for open dialogue, information sharing, and problem-solving regarding special education issues. By convening regular meetings, members can discuss and analyze the priority concerns affecting students with special needs, such as curriculum adaptations, teacher training, inclusive practices, resource allocation, and parental involvement.
+
+* Recommendation 2: Create a dedicated special education director position whose sole responsibility is to oversee special education.
+
+  + Creating a dedicated special education director position whose sole responsibility is to oversee special education is an important step in ensuring that students with special needs receive the support and resources they require. Leadership in this capacity is currently highly desired and this position would play a crucial role in managing and improving special education programs within the district, addressing the unique needs of students with disabilities, and advocating for their rights.
+  
+  + Many questions from staff (see recommendation 3) go unanswered by district administrators because they do not have the answers to questions and cannot get in touch with the assistant superintendent currently tasked with answering them. This director position would act as an intermediary to answer staff questions immediately.   
+
+* Recommendation 3: Develop plan to implement relationship building strategies in addition to communication.
+
+  + Developing a plan to implement relationship building strategies in addition to communication is essential for fostering positive connections and strengthening bonds within any personal or professional interaction within the district. While effective communication is crucial, it is equally important to engage in activities and strategies that go beyond mere information exchange. 
+
+* Recommendation 4: Set expectations for administrative visits to classrooms and responding to emails and phone calls. Ensure there are enough of them to meet those expectations. 
+
+  + Expectations need to be set for district administrators to visit classrooms, respond to emails and phone calls (in a timely way), and meet the expectations of staff and administrators in schools. Across roles, many staff cite a lack of responsiveness to their phone calls and emails as barriers. 
+
+* Recommendation 5: Immediately reinstitute job alike meetings.
+
+  + "Immediately reinstituting job alike meetings" refers to the practice of organizing meetings or gatherings that bring together individuals who hold similar positions or work in similar roles within the district. These meetings are aimed at facilitating collaboration, knowledge-sharing, and professional development among employees who share common job responsibilities or face similar challenges.
+  
+  + Evident from the text analysis (see the Effective Communication and Communication Recommendations sections) is staff members' attachment to these meetings and the value they see in them. Emails and robo calls have limited effectiveness and aren't well-liked, as seen in the Ineffective Communication section.  
+
+* Recommendation 6: Review FTE allocated to the teaching program vs. itinerant services to determine      appropriate staffing and areas that can flex.
+
+  + In the Climate and Culture Facilitators section, we see many staff feel overwhelmed by their job responsibilities and discuss related terms to staffing like "substitute" teachers and various staff roles. "Time" is a recurring facilitator identified across roles. So is "pay."  
+  
+* Recommendation 7: A culture shift is required.
+
+  + There is currently a pervasive "us versus them" mentality prevailing at all staff levels in the district. District admins are structured in such a way that teaching and support staff are pitted against one another in competition for resources; school staff blame district staff for challenges faced in their roles; school staff feel siloed from one another and only communicate with others in their departments (a recurring request is more planning time with other roles, particularly on behalf of gen ed teachers curious about the special education process).   
+  
+  + We also see from the text analysis that accessibility and equity, as frequently recurring terms used by certified support staff and special education teachers, need to be a higher priority in the district given it's vision and commitment focused on "equity, engagement, and excellence for every student." "Accessibility" can refer to curriculum in the classroom or simply access to physical spaces as we see "double doors" and accessible "bathrooms" listed as priorities by staff.   
 
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all'}
 
 
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
