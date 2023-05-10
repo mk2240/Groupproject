@@ -1045,6 +1045,17 @@ rf_fit %>%
 collect_metrics(rf_fit)
 ```
 
+```{r}
+# Unpack the estimated models.
+lasso_cv %>%
+  collect_metrics(summarize = FALSE)%>%
+  summarize(avg_rmse = mean(.estimate))
+
+rf_fit %>%
+  collect_metrics(summarize = FALSE)%>%
+  summarize(avg_rmse = mean(.estimate))
+```
+
 ## find the best topic numbers
 ```{r, echo = FALSE,results = 'hide', fig.keep = 'all', fig.align="center", fig.height = 9, fig.width = 8}
 
